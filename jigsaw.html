@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>拼图小游戏</title>
+	<style>
+	    *{margin: 0;padding: 0;}
+	    ul{list-style: none;position: relative;}
+	    #control{text-align: center; margin-top: 30px; }
+	    input{padding: 10px;}
+		#wrap{ width: 300px;height: 300px; border:1px solid #ccc; margin: 30px auto;}
+		#wrap li{ width: 98px; height: 98px; border:1px solid transparent; float: left;}
+		#wrap img{height: 100%;}
+	</style>
+</head>
+<body>
+<div id="control">
+	<input type="button" id="start" value="start game" />
+	<br />
+	<br />
+	<input type="checkbox" id="ef" /><label>transition</label>
+</div>
+<div id="wrap">
+	<ul>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+		<li></li>
+	</ul>
+</div>	
+		
+<script>
+	/*	
+	 * 对此游戏而言，不改变dom元素坐标，只改变元素背景样式，是最简便的写法。上一版贪吃蛇就是这么写的，省了很多dom属性遍历。
+	 * 改变元素位置的实现，更符合真实的拼图游戏，同时也便于添加一些过渡效果。 一些思路也可以直接运用到俄罗斯方块，2048等同类游戏上。
+	 * 各有利弊，看实际需求了。
+	 * author:liege
+	 * email:liegemove@live.com
+	 * github:https://github.com/liege
+	 */
+	var indexArr = [];    //图片序列
+	var allBlock = [];    //图片格子们
+	var aPos = [];    //格子们的坐标
+	var space = null;    //空白格子
+	var elems = document.getElementById("wrap").getElementsByTagName("li");
+	var start = document.getElementById("start");
+	var ef = document.getElementById("ef");
+	var state = null;
+	//开启过渡效果	
+	ef.onclick = function(){
+		state = ef.checked;
+	};
+	//开始游戏
+	start.onclick = init;
+	//布局转换			
+	for(var i= 0;i<elems.length;i++){
+		aPos[i] = {left:elems[i].offsetLeft, top:elems[i].offsetTop};
+		if(i<elems.length-1){
+			indexArr.push(i+1);
+		}
+	}
+	for(var i = 0;i<elems.length;i++){
+		elems[i].style.position = "absolute";
+		elems[i].style.left = aPos[i].left + "px";
+		elems[i].style.top = aPos[i].top + "px";
+		elems[i].index = i;   //用来计算邻居们
+		//插入img	
+		if(i<elems.length-1){
+			elems[i].innerHTML = "<img src='images/lufei0"+(i+1)+".jpg'>";
+		}
+	};
+	//数组乱序
+	shuffle = function(o){ 
+		for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+		return o;
+	};
+	//打乱图片位置
+	indexArr = shuffle(indexArr);		
+	//初始化游戏
+	function init(){
+		for(var i=0;i<elems.length;i++){
+			if(i==elems.length-1){ 
+				space = elems[i];
+				newVicinage();
+				continue;
+			};
+				//标识有内容的模块类别
+				allBlock.push(elems[i]);
+				elems[i].dataset.make = "block";
+				elems[i].innerHTML = "<img src='images/lufei0"+indexArr[i]+".jpg'>";
+		}
+	}
+	//交换元素位置及编号
+	function exchange(elem1,elem2,Axis){
+		var oldAttr = {
+			top:elem1.style.top,
+			left:elem1.style.left,
+			index:elem1.index
+		};
+		if(Axis=="x"){
+			if(state){
+				setMove(elem1,space.offsetLeft,space.offsetTop,10);
+			}else{
+				elem1.style.left = space.style.left;
+			}
+			elem2.style.left = oldAttr.left;
+		}else{
+			if(state){
+				setMove(elem1,space.offsetLeft,space.offsetTop,10);
+			}else{			
+				elem1.style.top = space.style.top;
+			}
+			elem2.style.top = oldAttr.top;			
+		}
+		elem1.index = space.index;
+		elem2.index = oldAttr.index;		
+	}
+	//设置相应格子运动
+	function move(direction){
+		for(var i=0;i<elems.length;i++){
+			switch(direction){
+				case 38:  //上
+				if(elems[i].dataset.status == "bottom"){
+					exchange(elems[i],space);					
+				}
+				break;	
+				case 39:  //右
+				if(elems[i].dataset.status == "left"){
+					exchange(elems[i],space,"x");
+				}
+				break;	
+				case 40:  //下
+				if(elems[i].dataset.status == "top"){
+					exchange(elems[i],space);
+				}
+				break;	
+				case 37:  //左
+				if(elems[i].dataset.status == "right"){
+					exchange(elems[i],space,"x");
+				}
+				break;																
+			}				
+		}
+	}
+	//判断空白格子上下左右
+	function newVicinage(){
+		for(var i in allBlock){
+			allBlock[i].dataset.status = "";
+			switch(parseInt(space.index)){
+				case parseInt(allBlock[i].index) -3:
+					allBlock[i].dataset.status = "bottom";
+					break;
+				case parseInt(allBlock[i].index) + 1:
+					if(parseInt(space.index)%3!=0){
+					allBlock[i].dataset.status = "left";
+					}
+					break;				
+				case parseInt(allBlock[i].index) +3:
+					allBlock[i].dataset.status = "top";
+					break;				
+				case parseInt(allBlock[i].index) -1:
+					if(parseInt(space.index)!=2&&parseInt(space.index)!=5&&parseInt(space.index)!=8){
+					allBlock[i].dataset.status = "right";
+					};
+					break;				
+			}
+		}
+	}
+	//键盘上下左右按键
+	document.onkeydown = function(e){
+		var ev = e || event;
+		move(ev.keyCode);
+		newVicinage();
+	};
+	
+
+	//运动类-可选效果
+	function setMove(obj,x,y,speed)   //对象，x坐标，y坐标，步速（值越大速度越慢）
+	{
+		//计算出移动距离 把运动距离分成等份
+		var	disXM = Math.round(Math.abs(x - obj.offsetLeft)%speed);
+		var	disYM = Math.round(Math.abs(y - obj.offsetTop)%speed);	
+		var	disX = Math.abs(x - obj.offsetLeft-disXM)/speed;  
+		var disY = Math.abs(y - obj.offsetTop-disYM)/speed;
+		var startX = obj.offsetLeft,startY = obj.offsetTop;
+		//定义一个变量计算调用定时器次数
+		var i=0;		
+		var timer = null;		
+		timer = setInterval(function(){
+			i++;
+			if(startX > x){					//如果要运动原始位置的左边
+				obj.style.left = startX - disX*i +disXM+"px";
+			}else
+			{
+			    obj.style.left = startX + disX*i +disXM+"px";
+			}
+			if(startY > y){					//如果要运动原始位置的上边
+				obj.style.top = startY - disY*i +disYM+"px";
+			}else
+			{
+			    obj.style.top = startY + disY*i +disYM+"px";
+			}
+			if(i>=speed)
+			{
+				clearInterval(timer);				
+			}				
+		},1000/60);	
+	}		
+</script>
+</body>
+</html>
